@@ -9,6 +9,8 @@ TV metadata to obtain additional information, then performs the "sort" via
 a user-selectable mechanism. In this aspect it seeks to be a replacement for
 FileBot and other similar tools."_
 
+> See the [mediasorter-server](https://github.com/xyzjonas/mediasorter-server) project for a simple (yet useful) web app frontend.
+
 ## Installation
 
 1. Install from PyPI.
