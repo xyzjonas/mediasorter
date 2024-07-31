@@ -86,8 +86,12 @@ def setup(
         if api.name == "tmdb":
             api.key = api_key
 
+    config_obj = {
+        "mediasorter": new_config.dict()
+    }
+
     with open(target, "w") as file:
-        yaml.safe_dump(new_config.dict(), file)
+        yaml.safe_dump(config_obj, file)
 
     console.print(Text(f"Configuration file copied to {target}", style="green bold"))
 
