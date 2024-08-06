@@ -15,7 +15,7 @@ class Cache:
 
     def __init__(self, cache_path: Optional[str]):
         self.path = cache_path
-        if os.path.isfile(self.path):
+        if self.path and os.path.isfile(self.path):
             logger.debug(f"Loading cache from {self.path}")
             with open(self.path, "r") as file:
                 contents = file.read().strip()

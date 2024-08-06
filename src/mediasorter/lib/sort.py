@@ -88,6 +88,10 @@ class OperationHandler:
             return
 
         try:
+            # fail fast if user/group doesn't exist
+            if self.options.chown:
+                _get_uid_and_gid(self.options.user, self.options.group)
+
             Executable.from_action_type(self.op.action) \
                       .commit(self.op.input_path, self.op.output_path)
 
@@ -146,11 +150,19 @@ class OperationHandler:
                     logger.debug(f"{os.path.basename(shasum_name)}: changing owner.")
                     os.chown(shasum_name, uid, gid)
                     os.chmod(shasum_name, int(self.options.file_mode, 8))
+        except (ExecutionError, KeyError) as e:
+            if "getgrnam" in str(e):
+                msg = f"Group doesn't exist: {str(e).replace('getgrnam(): ', '')}"
+                e = ExecutionError(msg)
 
-        except ExecutionError as e:
-            logger.error(f"Unexpected error: {e}")
+            logger.error(f"Commit error: {e}")
             self.op.exception = e
             return
+
+        except Exception as e:
+            logger.exception(e)
+            self.op.exception = e
+
 
 
 def _get_uid_and_gid(user_name=None, group_name=None):
@@ -386,7 +398,12 @@ class MediaSorter:
 
         # First try to parse a TV show (series and episodes numbers)
         directory, filename = None, None
-        operation = Operation(input_path=src_path, type="tv", action=action)
+        operation = Operation(
+            input_path=src_path,
+            type="tv",
+            action=action,
+            options=self.config.options
+        )
         if media_type in ["auto", "tv"]:
             try:
                 directory, filename = await self.suggest_tv_show(src_path)
