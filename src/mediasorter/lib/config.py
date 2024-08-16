@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict, Optional, Literal
+from typing import List, Dict, Optional, Literal, Union
 
 import yaml
 from loguru import logger
@@ -23,8 +23,8 @@ class MetadataProviderApi(BaseModel):
 
 
 class OperationOptions(BaseModel):
-    user: str = "root"
-    group: str = "media"
+    user: Union[int, str] = "root"
+    group: Union[int, str] = "media"
     chown: bool = False
     dir_mode: str = '0o644'
     file_mode: Optional[str]

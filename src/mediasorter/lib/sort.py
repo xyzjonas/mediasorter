@@ -2,7 +2,7 @@ import asyncio
 import os
 import subprocess
 from itertools import chain
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Tuple, Any, Union
 
 from loguru import logger
 from pydantic import BaseModel
@@ -51,7 +51,7 @@ class Operation(BaseModel):
 
     @property
     def handler(self):
-        return OperationHandler(self, options=self.options)
+        return OperationHandler(self)
 
     def raise_error(self):
         if self.exception:
@@ -64,9 +64,12 @@ class OperationHandler:
     op: Operation
     options: OperationOptions
 
-    def __init__(self, operation, options=None) -> None:
+    def __init__(self, operation) -> None:
         self.op = operation
-        self.options = options or OperationOptions()
+
+    @property
+    def options(self):
+        return self.op.options
 
     def pre_commit(self):
         if not self.op.output_path:
@@ -74,7 +77,7 @@ class OperationHandler:
 
         if os.path.exists(self.op.output_path):
             logger.info(f"File exists '{self.op.output_path}'")
-            if self.options.overwrite:
+            if self.op.options.overwrite:
                 logger.info(f"Removing for overwrite.")
                 os.remove(self.op.output_path)
             else:
@@ -164,19 +167,25 @@ class OperationHandler:
             self.op.exception = e
 
 
-
-def _get_uid_and_gid(user_name=None, group_name=None):
+def _get_uid_and_gid(
+        user_name: Union[str, int] = None,
+        group_name: Union[str, int] =None
+) -> (int, int):
     # expect ImportError on Windows
     import grp
     import pwd
 
-    if user_name:
+    if isinstance(user_name, str):
         uid = pwd.getpwnam(user_name)[2]
+    elif isinstance(user_name, int):
+        uid = user_name
     else:
         uid = os.getuid()
 
-    if group_name:
+    if isinstance(group_name, str):
         gid = grp.getgrnam(group_name)[2]
+    elif isinstance(group_name, int):
+        gid = group_name
     else:
         gid = os.getgid()
 

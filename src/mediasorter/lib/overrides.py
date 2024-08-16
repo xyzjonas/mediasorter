@@ -21,7 +21,7 @@ def read_search_overrides() -> SearchOverrides:
     url = 'https://raw.githubusercontent.com/xyzjonas/mediasorter/main/mediasorter.search.overrides.yml'
     try:
         req = request.Request(url)
-        with request.urlopen(req) as response:
+        with request.urlopen(req, timeout=5) as response:
             text = response.read().decode("utf-8").lower()
             data = yaml.load(text, yaml.SafeLoader)
 
