@@ -272,7 +272,7 @@ def sort(
         Text(f"SKIP: {len(errored)}", style="red" if errored else "green"),
     )
 
-    console.rule(style="red" if any([op.is_error for op in ops]) else "green")
+    console.rule(style="red" if any(op.is_error for op in ops) else "green")
 
     if not to_be_sorted:
         if errored:
@@ -299,7 +299,7 @@ def sort(
             progress.update(task, description=os.path.basename(operation.output_path))
             try:
                 asyncio.run(operation.handler.commit())
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - report failure and continue sorting
                 if verbose:
                     logger.exception(e)
                 console.print(f"{e}", style="red bold")
@@ -309,7 +309,7 @@ def sort(
         _pretty_print_operation(sort_operation, console)
 
     # Return non-zero if any of the confirmed sort operations fails.
-    if any([op.is_error for op in to_be_sorted]):
+    if any(op.is_error for op in to_be_sorted):
         typer.Exit(1)
 
 

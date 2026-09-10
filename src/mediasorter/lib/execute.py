@@ -47,7 +47,7 @@ class Executable:
             # Let's go
             return self._commit(source, destination)
         except Exception as e:
-            raise ExecutionError(e)
+            raise ExecutionError(e) from e
 
 
 class RunSubprocess(Executable):
@@ -60,7 +60,7 @@ class RunSubprocess(Executable):
 
     def _commit(self, source, destination):
         args = self.args + (source, destination)
-        output = subprocess.run(args, **self.kwargs)
+        output = subprocess.run(args, check=False, **self.kwargs)
         if output.returncode != 0:
             raise ExecutionError(
                 f"'{args}' subprocess failed. {output.stdout=}, {output.stderr=}"

@@ -18,7 +18,7 @@ class Cache:
             with open(self.path, "r") as file:
                 contents = file.read().strip()
                 if contents:
-                    self.memory = Memory.parse_raw(contents)
+                    self.memory = Memory.model_validate_json(contents)
                 else:
                     logger.debug(f"Initializing empty cache at {self.path}")
                     self.memory = Memory()
@@ -64,7 +64,7 @@ class Cache:
         return ",".join(res)
 
     def insert(
-        self, *args, result: TvShowMetadata | MovieMetadata = None, **kwargs
+        self, *args, result: TvShowMetadata | MovieMetadata | None = None, **kwargs
     ):
         if self.is_disabled:
             return
@@ -99,5 +99,5 @@ class Cache:
             f"Storing current cache ({len(self.memory.items)} items) to {self.path}"
         )
         with open(self.path, "w") as file:
-            file.write(self.memory.json())
+            file.write(self.memory.model_dump_json())
         logger.debug("Cache saved successfully.")

@@ -120,7 +120,7 @@ class OperationHandler:
                     f"Source filename:  {os.path.basename(self.op.output_path)}",
                     f"Source directory: {os.path.dirname(self.op.output_path)}",
                 ]
-                with open(info_file_name, "w") as fh:
+                with open(info_file_name, "w") as fh:  # noqa: ASYNC230 - one-off local file write
                     fh.write("\n".join(info_file_contents))
                     fh.write("\n")
                 if self.options.chown:
@@ -133,10 +133,11 @@ class OperationHandler:
                 logger.debug(
                     f"Generating shasum file: .../'{os.path.basename(shasum_name)}'."
                 )
-                shasum_cmdout = subprocess.run(
+                shasum_cmdout = subprocess.run(  # noqa: ASYNC221 - short-lived local process
                     ["sha256sum", "-b", f"{self.op.output_path}"],
                     capture_output=True,
                     encoding="utf8",
+                    check=False,
                 )
                 if shasum_cmdout.returncode != 0 or not shasum_cmdout.stdout:
                     msg = (
@@ -151,7 +152,7 @@ class OperationHandler:
                 logger.info(
                     f".../{os.path.basename(self.op.output_path)}: SHA generated {shasum_data}."
                 )
-                with open(shasum_name, "w") as fh:
+                with open(shasum_name, "w") as fh:  # noqa: ASYNC230 - one-off local file write
                     fh.write(shasum_data)
                     fh.write("\n")
                 if self.options.chown:
@@ -167,13 +168,13 @@ class OperationHandler:
             self.op.exception = e
             return
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - record any unexpected failure on the operation
             logger.exception(e)
             self.op.exception = e
 
 
 def _get_uid_and_gid(
-    user_name: str | int = None, group_name: str | int = None
+    user_name: str | int | None = None, group_name: str | int | None = None
 ) -> (int, int):
     # expect ImportError on Windows
     import grp
@@ -217,12 +218,13 @@ class MediaSorter:
         self,
         src_path: str,
         media_type: MediaType,
-        tv_shows_output: str = None,
-        movies_output: str = None,
+        tv_shows_output: str | None = None,
+        movies_output: str | None = None,
         action: Action = "copy",
-        options: OperationOptions = OperationOptions(),
+        options: OperationOptions | None = None,
     ) -> list[Operation]:
         """Scan a single source path (file or directory)."""
+        options = options if options is not None else OperationOptions()
         operations = []
         if os.path.isdir(src_path):
             tasks = []
@@ -439,7 +441,7 @@ class MediaSorter:
             operation.type = "movie"
             try:
                 directory, filename = await self.suggest_movie(src_path)
-            except (MediaSorterError, ParsingError) as e:
+            except ParsingError as e:
                 msg = f"{os.path.basename(src_path)} can't be parsed into a movie title: {e}."
                 logger.error(msg)
                 operation.exception = MediaSorterError(msg)

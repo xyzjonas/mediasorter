@@ -43,9 +43,7 @@ class ScanConfig(BaseModel):
     action: Action | None = "copy"  # select action type
     tv_shows_output: str | None  # where to put recognized TV shows
     movies_output: str | None  # where to put recognized movies
-    options: OperationOptions | None = (
-        None  # options for the sorting operation itself
-    )
+    options: OperationOptions | None = None  # options for the sorting operation itself
 
 
 class BaseParams(BaseModel):
@@ -128,7 +126,7 @@ def read_config(config_file: str | None = None) -> MediaSorterConfig:
     except Exception as e:
         raise ConfigurationError(
             f"Can't load configuration from '{config_file}', unexpected error {type(e)} "
-        )
+        ) from e
 
 
 default_config = MediaSorterConfig(

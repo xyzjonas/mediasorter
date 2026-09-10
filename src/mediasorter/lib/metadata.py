@@ -4,7 +4,7 @@ import random
 import re
 from collections.abc import Callable
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
 from urllib.parse import quote
 
 import aiohttp
@@ -83,12 +83,14 @@ class MetadataApi:
     key: str | None = None
     url: str | None = None
     path: str | None = None
-    search_overrides: dict[str, str] = {}
+    search_overrides: ClassVar[dict[str, str]] = {}
 
     semaphore: asyncio.Semaphore
 
     def __init__(
-        self, config: MetadataProviderApi, search_overrides: dict[str, str] = None
+        self,
+        config: MetadataProviderApi,
+        search_overrides: dict[str, str] | None = None,
     ) -> None:
         self.key = config.key
         self.url = config.url
@@ -121,10 +123,12 @@ class MetadataApi:
         :return: A json object
         """
         logger.debug(f"Network request: [GET]({url})")
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                response.raise_for_status()  # Raised errors don't get cached.
-                data = await response.json()
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url) as response,
+        ):
+            response.raise_for_status()  # Raised errors don't get cached.
+            data = await response.json()
         return data
 
     async def async_fetch_json(self, url, retry=0, max_retries=4):
@@ -157,9 +161,9 @@ class MetadataApi:
     async def try_harder(
         self,
         search_term: str,
-        validation_func: Callable[[dict, Any], Any] = None,  # must raise
-        validation_callback_args: tuple = None,
-        to_be_raised: Exception = None,
+        validation_func: Callable[[dict, Any], Any] | None = None,  # must raise
+        validation_callback_args: tuple | None = None,
+        to_be_raised: Exception | None = None,
         try_index: int = 1,
         min_len: int = 1,
     ) -> Any:
@@ -186,7 +190,7 @@ class MetadataApi:
             try:
                 response_data = await self.async_fetch_json(show_url)
                 return await validation_func(
-                    response_data, search_title, *(validation_callback_args or tuple())
+                    response_data, search_title, *(validation_callback_args or ())
                 )
             except MetadataQueryError as e:
                 logger.debug(f"Invalid search result: {e}")
@@ -204,7 +208,7 @@ class MetadataApi:
             f"No exception provided, query failed: {search_term=}, {try_index}. try."
         )
 
-    def clean_search_term(self, string, overrides: dict[str, str] = None) -> str:
+    def clean_search_term(self, string, overrides: dict[str, str] | None = None) -> str:
         parts = string.split()
         if not parts:
             parts = [string]
@@ -328,7 +332,9 @@ class TvMaze(TvShowMetadataApi):
     async def query(
         self, title: str, season_id: int, episode_id: int
     ) -> TvShowMetadata:
-        if (override_title := self.search_overrides.get(title.lower())) or (override_title := (await read_search_overrides()).shows.get(title.lower())):
+        if (override_title := self.search_overrides.get(title.lower())) or (
+            override_title := (await read_search_overrides()).shows.get(title.lower())
+        ):
             title = override_title
 
         series_data, episode = await self.try_harder(
@@ -373,9 +379,7 @@ class TMDB(MovieMetadataApi):
             return result
 
         next_page = 2
-        while next_page <= (
-            min(self.max_pages, total_pages)
-        ):
+        while next_page <= (min(self.max_pages, total_pages)):
             next_page_data = await super().async_fetch_json(url + f"&page={next_page}")
             next_page += 1
             if next_results := next_page_data.get("results"):
@@ -385,17 +389,17 @@ class TMDB(MovieMetadataApi):
 
     def __init__(
         self,
-        provider_config: MetadataProviderApi = None,
-        search_overrides: dict[str, str] = None,
+        provider_config: MetadataProviderApi | None = None,
+        search_overrides: dict[str, str] | None = None,
     ) -> None:
         super().__init__(provider_config, search_overrides)
         self.path = self.path.format(key=self.key, title="{title}")
 
-    def clean_search_term(self, string, overrides: dict[str, str] = None):
+    def clean_search_term(self, string, overrides: dict[str, str] | None = None):
         # "Sanitize" input name...
 
         # Remove the first "The" from the title when searching to avoid weird conflicts
-        search_movie_title = re.sub(r"[Tt]he\+", "", string, 1)
+        search_movie_title = re.sub(r"[Tt]he\+", "", string, count=1)
         search_movie_title = search_movie_title.replace("'", "")
         # Apply overrides
         if overrides and (search_movie_title in overrides):
@@ -416,7 +420,7 @@ class TMDB(MovieMetadataApi):
 
     @validation
     async def _match_movie(
-        self, movie_data: dict, search_term, search_year: int = None
+        self, movie_data: dict, search_term, search_year: int | None = None
     ):
         # List all movies and find the one with matching release year (+- 1 year)
         result_list = movie_data.get("results")
@@ -459,7 +463,7 @@ class TMDB(MovieMetadataApi):
         actual_terms = actual_terms + split_and_lower(
             result_movie_title, alphanum_only=True
         )
-        if not any([t in actual_terms for t in search_terms]):
+        if not any(t in actual_terms for t in search_terms):
             raise MetadataQueryError(
                 f"'{search_term}': result '{result_movie_title}' probably a nonsense."
             )
@@ -467,11 +471,11 @@ class TMDB(MovieMetadataApi):
         return result_movie_title, result_movie_year
 
     async def query(
-        self, title: str, search_year: int = None
+        self, title: str, search_year: int | None = None
     ) -> MovieMetadata | None:
-        if (override_title := self.search_overrides.get(title.lower())) or (override_title := (await read_search_overrides()).movies.get(
-            title.lower()
-        )):
+        if (override_title := self.search_overrides.get(title.lower())) or (
+            override_title := (await read_search_overrides()).movies.get(title.lower())
+        ):
             title = override_title
 
         if not self.key:

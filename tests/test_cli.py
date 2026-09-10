@@ -1,5 +1,3 @@
-
-
 def test_help(cli):
     assert "Usage:" in cli(["--help"]).output
     assert cli(["--help"]).exit_code == 0

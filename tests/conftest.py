@@ -33,7 +33,9 @@ def mock_overrides():
 
 @pytest.fixture(scope="session")
 def default_config() -> MediaSorterConfig:
-    return MediaSorterConfig(cache_path=None)
+    cfg = MediaSorterConfig(cache_path=None)
+    cfg.cache_path = None  # turn cache off
+    return cfg
 
 
 @pytest.fixture(scope="session")

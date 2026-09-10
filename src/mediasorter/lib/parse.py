@@ -165,7 +165,7 @@ def _find_title_and_year(
     src_path: str,
     split_characters: list[str],
     min_split_length: int,
-    metadata_mapping: dict[str, str] = None,
+    metadata_mapping: dict[str, str] | None = None,
 ) -> tuple[list[str], int | None, list[str]]:
     """
     The _find_title_and_year function takes a path to a file and splits it into its title and year.
@@ -260,7 +260,7 @@ def parse_season_and_episode(
         force=force,
     )
 
-    raw_series_title = list()
+    raw_series_title = []
     for word in filename_parts:
         # Skip years in the title, because of The Grand Tour
         for pat in YEAR_PATTERNS:
@@ -280,7 +280,7 @@ def parse_movie_name(
     src_path: str,
     split_characters: list[str],
     min_split_length: int,
-    metadata_mapping: dict[str, str] = None,
+    metadata_mapping: dict[str, str] | None = None,
 ) -> tuple[str, int | None, list[str]]:
     """Try to search for and parse movie title and release year."""
     # Pick the longest (= best chance of the right one in case of a mixed name).

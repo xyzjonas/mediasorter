@@ -43,14 +43,16 @@ async def test_scan_tv_shows_neg(media_sorter, shows_dir, shows):
     assert len(sort_operations) == 0
 
 
-def test_suggest_movie(media_sorter, movies):
+@pytest.mark.asyncio
+async def test_suggest_movie(media_sorter, movies):
     """Test a single movie media file."""
-    assert media_sorter.suggest_movie(movies[0])
+    assert await media_sorter.suggest_movie(movies[0])
 
 
-def test_suggest_show(media_sorter, shows):
+@pytest.mark.asyncio
+async def test_suggest_show(media_sorter, shows):
     """Test a single TV show media file."""
-    assert media_sorter.suggest_tv_show(shows[0])
+    assert await media_sorter.suggest_tv_show(shows[0])
 
 
 @pytest.mark.asyncio
@@ -86,7 +88,7 @@ async def test_suggest(media_sorter, movies, shows, locals_key, type_, raises):
 async def test_suggest_metadata(media_sorter, movie, md, real_config):
     _, name_without_md = await media_sorter.suggest_movie(movie)
 
-    config_md = real_config.copy()
+    config_md = real_config.model_copy()
     config_md.parameters.movie.allow_metadata_tagging = True
     _, name_with_md = await media_sorter.suggest_movie(movie)
 
