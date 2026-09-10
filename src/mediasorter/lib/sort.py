@@ -2,30 +2,27 @@ import asyncio
 import os
 import subprocess
 from itertools import chain
-from typing import Optional, List, Tuple, Any, Union
+from typing import Any
 
 from loguru import logger
 from pydantic import BaseModel
 
-from mediasorter.lib.execute import ExecutionError, Executable
+from mediasorter.lib.execute import Executable, ExecutionError
+
 from .cache import Cache
-from .config import (
-    OperationOptions,
-    MediaType,
-    Action, MediaSorterConfig,
-    read_config
-)
+from .config import Action, MediaSorterConfig, MediaType, OperationOptions, read_config
 from .metadata import (
-    TvShowMetadata,
-    MovieMetadata,
     MetadataQueryError,
-    tv_metadata_providers, movie_metadata_providers,
+    MovieMetadata,
+    TvShowMetadata,
+    movie_metadata_providers,
+    tv_metadata_providers,
 )
 from .parse import (
-    parse_season_and_episode,
-    parse_movie_name,
+    ParsingError,
     fix_leading_the,
-    ParsingError
+    parse_movie_name,
+    parse_season_and_episode,
 )
 
 
@@ -39,11 +36,11 @@ class CantSortError(MediaSorterError):
 
 class Operation(BaseModel):
     input_path: str
-    output_path: Optional[str]
+    output_path: str | None = None
     action: Action = "copy"
     type: MediaType = "auto"
-    exception: Optional[Any]
-    options: Optional[OperationOptions]
+    exception: Any | None = None
+    options: OperationOptions | None = None
 
     @property
     def is_error(self):
@@ -60,7 +57,6 @@ class Operation(BaseModel):
 
 
 class OperationHandler:
-
     op: Operation
     options: OperationOptions
 
@@ -73,12 +69,12 @@ class OperationHandler:
 
     def pre_commit(self):
         if not self.op.output_path:
-            self.op.exception = CantSortError(f"Destination path missing.")
+            self.op.exception = CantSortError("Destination path missing.")
 
         if os.path.exists(self.op.output_path):
             logger.info(f"File exists '{self.op.output_path}'")
             if self.op.options.overwrite:
-                logger.info(f"Removing for overwrite.")
+                logger.info("Removing for overwrite.")
                 os.remove(self.op.output_path)
             else:
                 msg = f"Destination file '{self.op.output_path}' exists, overwrite not allowed."
@@ -95,8 +91,9 @@ class OperationHandler:
             if self.options.chown:
                 _get_uid_and_gid(self.options.user, self.options.group)
 
-            Executable.from_action_type(self.op.action) \
-                      .commit(self.op.input_path, self.op.output_path)
+            Executable.from_action_type(self.op.action).commit(
+                self.op.input_path, self.op.output_path
+            )
 
             uid, gid = None, None
             if self.options.chown:
@@ -116,39 +113,47 @@ class OperationHandler:
             # Create the info file.
             if self.options.infofile:
                 info_file_name = f"{self.op.output_path}.txt"
-                logger.info(f"Creating info file: .../{os.path.basename(info_file_name)}")
+                logger.info(
+                    f"Creating info file: .../{os.path.basename(info_file_name)}"
+                )
                 info_file_contents = [
-                    "Source filename:  {}".format(os.path.basename(self.op.output_path)),
-                    "Source directory: {}".format(os.path.dirname(self.op.output_path))
+                    f"Source filename:  {os.path.basename(self.op.output_path)}",
+                    f"Source directory: {os.path.dirname(self.op.output_path)}",
                 ]
-                with open(info_file_name, 'w') as fh:
-                    fh.write('\n'.join(info_file_contents))
-                    fh.write('\n')
+                with open(info_file_name, "w") as fh:
+                    fh.write("\n".join(info_file_contents))
+                    fh.write("\n")
                 if self.options.chown:
                     os.chown(info_file_name, uid, gid)
                     os.chmod(info_file_name, int(self.options.file_mode, 8))
 
             # Create sha256sum file
             if self.options.shasum:
-                shasum_name = '{}.sha256sum'.format(self.op.output_path)
-                logger.debug(f"Generating shasum file: .../'{os.path.basename(shasum_name)}'.")
+                shasum_name = f"{self.op.output_path}.sha256sum"
+                logger.debug(
+                    f"Generating shasum file: .../'{os.path.basename(shasum_name)}'."
+                )
                 shasum_cmdout = subprocess.run(
-                    ['sha256sum', '-b', f'{self.op.output_path}'],
-                    capture_output=True, encoding='utf8'
+                    ["sha256sum", "-b", f"{self.op.output_path}"],
+                    capture_output=True,
+                    encoding="utf8",
                 )
                 if shasum_cmdout.returncode != 0 or not shasum_cmdout.stdout:
-                    msg = f"SHASUM checksum generation failed, " \
-                          f"out={shasum_cmdout.stdout} err={shasum_cmdout.stderr}"
+                    msg = (
+                        f"SHASUM checksum generation failed, "
+                        f"out={shasum_cmdout.stdout} err={shasum_cmdout.stderr}"
+                    )
                     logger.error(msg)
                     self.op.exception = MediaSorterError(msg)
                     return
 
                 shasum_data = shasum_cmdout.stdout.strip()
                 logger.info(
-                    f".../{os.path.basename(self.op.output_path)}: SHA generated {shasum_data}.")
-                with open(shasum_name, 'w') as fh:
+                    f".../{os.path.basename(self.op.output_path)}: SHA generated {shasum_data}."
+                )
+                with open(shasum_name, "w") as fh:
                     fh.write(shasum_data)
-                    fh.write('\n')
+                    fh.write("\n")
                 if self.options.chown:
                     logger.debug(f"{os.path.basename(shasum_name)}: changing owner.")
                     os.chown(shasum_name, uid, gid)
@@ -168,8 +173,7 @@ class OperationHandler:
 
 
 def _get_uid_and_gid(
-        user_name: Union[str, int] = None,
-        group_name: Union[str, int] =None
+    user_name: str | int = None, group_name: str | int = None
 ) -> (int, int):
     # expect ImportError on Windows
     import grp
@@ -193,7 +197,6 @@ def _get_uid_and_gid(
 
 
 class MediaSorter:
-
     # config: MediaSorterConfig
 
     def __init__(self, config: MediaSorterConfig):
@@ -204,24 +207,23 @@ class MediaSorter:
     def from_config(cls, config_path: str):
         return cls(read_config(config_path))
 
-    async def scan_all(self) -> List[Operation]:
+    async def scan_all(self) -> list[Operation]:
         """Scan all preconfigured scan sources."""
         scan_ops = [self.scan(**scan.__dict__) for scan in self.config.scan_sources]
         result_lists = await asyncio.gather(*scan_ops)
         return list(chain(*result_lists))
 
     async def scan(
-            self,
-            src_path: str,
-            media_type: MediaType,
-            tv_shows_output: str = None,
-            movies_output: str = None,
-            action: Action = "copy",
-            options: OperationOptions = OperationOptions()
-    ) -> List[Operation]:
+        self,
+        src_path: str,
+        media_type: MediaType,
+        tv_shows_output: str = None,
+        movies_output: str = None,
+        action: Action = "copy",
+        options: OperationOptions = OperationOptions(),
+    ) -> list[Operation]:
         """Scan a single source path (file or directory)."""
         operations = []
-
         if os.path.isdir(src_path):
             tasks = []
             logger.debug(f"Scanning {src_path} [{media_type}]")
@@ -229,8 +231,12 @@ class MediaSorter:
                 child_path = os.path.join(src_path, filename)
                 tasks.append(
                     self.scan(
-                        child_path, media_type, tv_shows_output,
-                        movies_output, action, options
+                        child_path,
+                        media_type,
+                        tv_shows_output,
+                        movies_output,
+                        action,
+                        options,
                     )
                 )
 
@@ -278,7 +284,7 @@ class MediaSorter:
 
         raise MediaSorterError(
             f"TV: none of {[a.name for a in self.config.api]} API queries was successful",
-            exceptions
+            exceptions,
         )
 
     async def find_movie(self, *args) -> MovieMetadata:
@@ -302,7 +308,7 @@ class MediaSorter:
 
         raise MediaSorterError(
             f"MOVIE: none of {[a.name for a in self.config.api]} API queries was successful",
-            exceptions
+            exceptions,
         )
 
     async def suggest_tv_show(self, src_path: str):
@@ -319,7 +325,7 @@ class MediaSorter:
                 src_path,
                 self.config.parameters.split_characters,
                 self.config.parameters.tv.min_split_length,
-                force=True  # Try everything!
+                force=True,  # Try everything!
             )
 
         if parsed_tv_show:
@@ -338,7 +344,7 @@ class MediaSorter:
 
             return season_dir, filename
 
-    async def suggest_movie(self, src_path: str) -> Tuple[Optional[str], str]:
+    async def suggest_movie(self, src_path: str) -> tuple[str | None, str]:
         """
         Suggest the title of the movie, as well as its year based on an external metadata API.
 
@@ -349,10 +355,10 @@ class MediaSorter:
             # Even if movie type is forced, try to find the season/episode numbers
             # to disqualify the media file before any network requests.
             if parse_season_and_episode(
-                    src_path,
-                    self.config.parameters.split_characters,
-                    self.config.parameters.movie.min_split_length,
-                    force=False  # We DON'T want to parse a TV show at all costs.
+                src_path,
+                self.config.parameters.split_characters,
+                self.config.parameters.movie.min_split_length,
+                force=False,  # We DON'T want to parse a TV show at all costs.
             ):
                 raise MediaSorterError(f"This appears to be a TV show: {src_path}")
         except ParsingError:
@@ -362,7 +368,7 @@ class MediaSorter:
             src_path,
             self.config.parameters.split_characters,
             self.config.parameters.movie.min_split_length,
-            self.config.metainfo_map
+            self.config.metainfo_map,
         )
         logger.debug(f"Parsed {os.path.basename(src_path)}, {movie=} {year=}")
         result = await self.find_movie(movie, year)
@@ -388,15 +394,17 @@ class MediaSorter:
         return subdir, filename.strip()
 
     async def suggest(
-            self, src_path: str, media_type: MediaType = "auto", action: Action = "copy"
-    ) -> Optional[Operation]:
+        self, src_path: str, media_type: MediaType = "auto", action: Action = "copy"
+    ) -> Operation | None:
 
         extension = os.path.splitext(src_path)[-1]
 
         logger.info(f">>> Parsing {src_path} [{media_type}]")
 
         if not extension:
-            logger.warning(f"{os.path.basename(src_path)}: files without extension not allowed.")
+            logger.warning(
+                f"{os.path.basename(src_path)}: files without extension not allowed."
+            )
             return None
         elif extension and extension not in self.config.parameters.valid_extensions:
             logger.warning(
@@ -408,16 +416,15 @@ class MediaSorter:
         # First try to parse a TV show (series and episodes numbers)
         directory, filename = None, None
         operation = Operation(
-            input_path=src_path,
-            type="tv",
-            action=action,
-            options=self.config.options
+            input_path=src_path, type="tv", action=action, options=self.config.options
         )
         if media_type in ["auto", "tv"]:
             try:
                 directory, filename = await self.suggest_tv_show(src_path)
             except ParsingError as e:
-                msg = f"{os.path.basename(src_path)} can't be parsed into a TV show: {e}."
+                msg = (
+                    f"{os.path.basename(src_path)} can't be parsed into a TV show: {e}."
+                )
                 if media_type == "tv":
                     logger.error(msg)
                     operation.exception = MediaSorterError(msg)
@@ -458,7 +465,7 @@ class MediaSorter:
         return operation
 
     @staticmethod
-    async def commit_all(operations: List[Operation]) -> List[Operation]:
+    async def commit_all(operations: list[Operation]) -> list[Operation]:
         for sort_op in operations:
             await sort_op.handler.commit()
         return operations

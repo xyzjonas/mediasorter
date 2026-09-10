@@ -1,19 +1,17 @@
 import os.path
-from typing import Dict, Union, Optional
 
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from mediasorter.lib.models import TvShowMetadata, MovieMetadata
+from mediasorter.lib.models import MovieMetadata, TvShowMetadata
 
 
 class Memory(BaseModel):
-    items: Dict[str, Union[TvShowMetadata, MovieMetadata]] = Field(default_factory=dict)
+    items: dict[str, TvShowMetadata | MovieMetadata] = Field(default_factory=dict)
 
 
 class Cache:
-
-    def __init__(self, cache_path: Optional[str]):
+    def __init__(self, cache_path: str | None):
         self.path = cache_path
         if self.path and os.path.isfile(self.path):
             logger.debug(f"Loading cache from {self.path}")
@@ -24,7 +22,9 @@ class Cache:
                 else:
                     logger.debug(f"Initializing empty cache at {self.path}")
                     self.memory = Memory()
-            logger.debug(f"Cache recovered successfully ({len(self.memory.items)} items)")
+            logger.debug(
+                f"Cache recovered successfully ({len(self.memory.items)} items)"
+            )
         else:
             logger.debug(f"Initializing empty cache at {self.path}")
             self.memory = Memory()
@@ -38,7 +38,7 @@ class Cache:
             self.write()
 
     @staticmethod
-    def __construct_unique_key(*args, **kwargs) -> Optional[str]:
+    def __construct_unique_key(*args, **kwargs) -> str | None:
         res = []
         for arg in args:
             if arg is None:
@@ -63,7 +63,9 @@ class Cache:
 
         return ",".join(res)
 
-    def insert(self, *args, result: Union[TvShowMetadata, MovieMetadata] = None, **kwargs):
+    def insert(
+        self, *args, result: TvShowMetadata | MovieMetadata = None, **kwargs
+    ):
         if self.is_disabled:
             return
 
@@ -74,7 +76,7 @@ class Cache:
 
         self.memory.items[unique_key] = result
 
-    def get(self, *args, **kwargs) -> Optional[Union[TvShowMetadata, MovieMetadata]]:
+    def get(self, *args, **kwargs) -> TvShowMetadata | MovieMetadata | None:
         if self.is_disabled:
             return
 
@@ -93,7 +95,9 @@ class Cache:
         if self.is_disabled:
             return
 
-        logger.debug(f"Storing current cache ({len(self.memory.items)} items) to {self.path}")
+        logger.debug(
+            f"Storing current cache ({len(self.memory.items)} items) to {self.path}"
+        )
         with open(self.path, "w") as file:
             file.write(self.memory.json())
-        logger.debug(f"Cache saved successfully.")
+        logger.debug("Cache saved successfully.")

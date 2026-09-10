@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from mediasorter.lib.config import OperationOptions
-from mediasorter.lib.sort import OperationHandler, Operation
+from mediasorter.lib.sort import Operation, OperationHandler
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def tmp_tv_show(shows, shows_dir):
             yield src_result, os.path.join(tmp_dest_dir, os.path.basename(show))
 
 
-@pytest.skip
+@pytest.mark.skip
 @pytest.mark.asyncio
 async def test_chown(tmp_tv_show):
     src, dest = tmp_tv_show

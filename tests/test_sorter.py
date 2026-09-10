@@ -54,14 +54,17 @@ def test_suggest_show(media_sorter, shows):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("locals_key, type_, raises", [
-    ("movies", "movie", contextlib.nullcontext()),
-    ("movies", "tv", pytest.raises(MediaSorterError)),
-    ("shows", "tv", contextlib.nullcontext()),
-    ("shows", "movie", pytest.raises(MediaSorterError)),
-    ("movies", "auto", contextlib.nullcontext()),
-    ("shows", "auto", contextlib.nullcontext())
-])
+@pytest.mark.parametrize(
+    "locals_key, type_, raises",
+    [
+        ("movies", "movie", contextlib.nullcontext()),
+        ("movies", "tv", pytest.raises(MediaSorterError)),
+        ("shows", "tv", contextlib.nullcontext()),
+        ("shows", "movie", pytest.raises(MediaSorterError)),
+        ("movies", "auto", contextlib.nullcontext()),
+        ("shows", "auto", contextlib.nullcontext()),
+    ],
+)
 async def test_suggest(media_sorter, movies, shows, locals_key, type_, raises):
     """Test the sorter with 'test' data."""
     for media_file in locals().get(locals_key):
@@ -70,9 +73,15 @@ async def test_suggest(media_sorter, movies, shows, locals_key, type_, raises):
             result.raise_error()
 
 
-@pytest.mark.parametrize("movie, md", [
-    ("Detective Knight Independence 1080p DVD HDRip 5 mkv", ['1080p', 'DVD', 'HDR', '5.x'])
-])
+@pytest.mark.parametrize(
+    "movie, md",
+    [
+        (
+            "Detective Knight Independence 1080p DVD HDRip 5 mkv",
+            ["1080p", "DVD", "HDR", "5.x"],
+        )
+    ],
+)
 @pytest.mark.asyncio
 async def test_suggest_metadata(media_sorter, movie, md, real_config):
     _, name_without_md = await media_sorter.suggest_movie(movie)

@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from mediasorter.lib.config import OperationOptions, ScanConfig
+from mediasorter.lib.config import Action, OperationOptions, ScanConfig
 from mediasorter.lib.sort import MediaSorter
 
 
@@ -32,7 +32,7 @@ def tmp_movie(movies, movies_dir):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("action", ["move", "hardlink", "symlink", "copy"])
-async def test_operation_commit(real_config, tmp_tv_show, action):
+async def test_operation_commit(real_config, tmp_tv_show, action: Action):
 
     with TemporaryDirectory() as tmp_dir:
         config = deepcopy(real_config)
@@ -42,7 +42,7 @@ async def test_operation_commit(real_config, tmp_tv_show, action):
                 media_type="tv",
                 action=action,
                 tv_shows_output=tmp_dir,
-                movies_output=tmp_dir
+                movies_output=tmp_dir,
             )
         ]
 
@@ -58,7 +58,9 @@ async def test_operation_commit(real_config, tmp_tv_show, action):
         assert op.raise_error()
         assert os.path.exists(op.output_path)
         if action == "move":
-            assert not os.path.exists(tmp_tv_show), f"{action} original file wasn't deleted"
+            assert not os.path.exists(tmp_tv_show), (
+                f"{action} original file wasn't deleted"
+            )
         else:
             assert os.path.exists(tmp_tv_show), f"{action} original file was deleted"
 
@@ -99,7 +101,7 @@ async def test_operation_commit_meta_files_movie(real_config, tmp_movie):
                 action="copy",
                 tv_shows_output=tmp_dir,
                 movies_output=tmp_dir,
-                options=OperationOptions(infofile=True, shasum=True)
+                options=OperationOptions(infofile=True, shasum=True),
             )
         ]
         sorter = MediaSorter(config)
@@ -108,10 +110,8 @@ async def test_operation_commit_meta_files_movie(real_config, tmp_movie):
         await sorter.commit_all(await sorter.scan_all())
 
         expected_files = [
-            expected_path + original_ext + ext for ext in ('', ".sha256sum", ".txt")
+            expected_path + original_ext + ext for ext in ("", ".sha256sum", ".txt")
         ]
         for path in expected_files:
             list_dir = os.listdir(tmp_dir)
-            assert os.path.exists(path), f"\"{path}\" NOT FOUND, actual files: {list_dir}"
-
-
+            assert os.path.exists(path), f'"{path}" NOT FOUND, actual files: {list_dir}'

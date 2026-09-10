@@ -13,7 +13,6 @@ class ExecutionError(Exception):
 
 
 class Executable:
-
     @classmethod
     def from_action_type(cls, action: Action):
         if action == "copy":
@@ -21,9 +20,9 @@ class Executable:
         if action == "move":
             return Move()
         if action == "symlink":
-            return RunSubprocess('ln', '-s', stdout=DEVNULL, stderr=DEVNULL)
+            return RunSubprocess("ln", "-s", stdout=DEVNULL, stderr=DEVNULL)
         if action == "hardlink":
-            return RunSubprocess('ln', stdout=DEVNULL, stderr=DEVNULL)
+            return RunSubprocess("ln", stdout=DEVNULL, stderr=DEVNULL)
         raise NotImplementedError(f"Action executor '{action}' not implemented")
 
     def _commit(self, source, destination):
@@ -63,7 +62,9 @@ class RunSubprocess(Executable):
         args = self.args + (source, destination)
         output = subprocess.run(args, **self.kwargs)
         if output.returncode != 0:
-            raise ExecutionError(f"'{args}' subprocess failed. {output.stdout=}, {output.stderr=}")
+            raise ExecutionError(
+                f"'{args}' subprocess failed. {output.stdout=}, {output.stderr=}"
+            )
 
 
 class Copy(Executable):

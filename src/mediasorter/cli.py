@@ -2,27 +2,30 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 import yaml
 from loguru import logger
 from rich.console import Console
-from rich.progress import Progress, BarColumn, TextColumn
+from rich.progress import BarColumn, Progress, TextColumn
 from rich.prompt import Confirm, Prompt
 from rich.table import Column
 from rich.text import Text
 
 from mediasorter import __version__
 from mediasorter.lib.config import (
-    ScanConfig,
-    MediaType,
     CONFIG_PATH,
-    read_config, default_config, MediaSorterConfig, ConfigurationError,
+    ConfigurationError,
+    MediaSorterConfig,
+    MediaType,
+    ScanConfig,
+    default_config,
+    read_config,
 )
 from mediasorter.lib.sort import MediaSorter
 
-logging.getLogger('asyncio').setLevel(logging.WARNING)
+logging.getLogger("asyncio").setLevel(logging.WARNING)
 
 
 app = typer.Typer()
@@ -33,14 +36,21 @@ def _get_config(path: str, console: Console) -> MediaSorterConfig:
         return read_config(path)
     except ConfigurationError as e:
         console.print(f"[bold red]{e}")
-        console.print("[white]Consider using --setup to install default configuration file")
+        console.print(
+            "[white]Consider using --setup to install default configuration file"
+        )
         sys.exit(2)
 
 
 def _pretty_print_operation(sort_operation, console, before=False):
     if before and not sort_operation.is_error:
         console.print(Text(f"○ {sort_operation.input_path}", style="green"))
-        console.print(Text(f"   ⤷  [{sort_operation.action}] {sort_operation.output_path}", style="green"))
+        console.print(
+            Text(
+                f"   ⤷  [{sort_operation.action}] {sort_operation.output_path}",
+                style="green",
+            )
+        )
     elif not sort_operation.is_error:
         console.print(Text(f" ✓ {sort_operation.output_path}", style="green"))
 
@@ -53,17 +63,15 @@ def _pretty_print_operation(sort_operation, console, before=False):
 
 @app.command()
 def setup(
-        configuration: Annotated[
-            Optional[str],
-            typer.Option(
-                "--configuration", "-c",
-                help="Use a non-default configuration file."
-            )
-        ] = None,
-        verbose: Annotated[
-            bool,
-            typer.Option("--verbose", "-v", help="Show log messages.")
-        ] = False,
+    configuration: Annotated[
+        str | None,
+        typer.Option(
+            "--configuration", "-c", help="Use a non-default configuration file."
+        ),
+    ] = None,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Show log messages.")
+    ] = False,
 ):
     """Setup a default configuration file."""
     if not verbose:
@@ -74,7 +82,9 @@ def setup(
     target = configuration or CONFIG_PATH
 
     logger.debug(f"Creating new config at {target}")
-    if os.path.exists(target) and not Confirm.ask(f"File already exists {target}, overwrite?"):
+    if os.path.exists(target) and not Confirm.ask(
+        f"File already exists {target}, overwrite?"
+    ):
         raise typer.Abort()
 
     api_key = Prompt.ask("Enter TMDB API key")
@@ -86,9 +96,7 @@ def setup(
         if api.name == "tmdb":
             api.key = api_key
 
-    config_obj = {
-        "mediasorter": new_config.dict()
-    }
+    config_obj = {"mediasorter": new_config.dict()}
 
     with open(target, "w") as file:
         yaml.safe_dump(config_obj, file)
@@ -98,17 +106,15 @@ def setup(
 
 @app.command()
 def info(
-        configuration: Annotated[
-            Optional[str],
-            typer.Option(
-                "--configuration", "-c",
-                help="Use a non-default configuration file."
-            )
-        ] = None,
-        verbose: Annotated[
-            bool,
-            typer.Option("--verbose", "-v", help="Show log messages.")
-        ] = False,
+    configuration: Annotated[
+        str | None,
+        typer.Option(
+            "--configuration", "-c", help="Use a non-default configuration file."
+        ),
+    ] = None,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Show log messages.")
+    ] = False,
 ):
     """Show configuration details."""
     if not verbose:
@@ -117,20 +123,22 @@ def info(
     console = Console(quiet=False)
     parsed_config = _get_config(configuration, console)
 
-    console.rule(title=f"[blue] Configured scans @ {CONFIG_PATH}", align="left", style="blue")
+    console.rule(
+        title=f"[blue] Configured scans @ {CONFIG_PATH}", align="left", style="blue"
+    )
     for index, scan in enumerate(parsed_config.scan_sources):
         console.print(
-            f"[white] {index + 1}) {scan.src_path} --> [MOV] {scan.movies_output}, [TV] {scan.tv_shows_output}")
+            f"[white] {index + 1}) {scan.src_path} --> [MOV] {scan.movies_output}, [TV] {scan.tv_shows_output}"
+        )
 
     sys.exit(0)
 
 
 @app.command()
 def version(
-        verbose: Annotated[
-            bool,
-            typer.Option("--verbose", "-v", help="Show log messages.")
-        ] = False,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Show log messages.")
+    ] = False,
 ):
     """Show version."""
     if not verbose:
@@ -138,62 +146,60 @@ def version(
 
     console = Console(quiet=False)
     console.print(Text(__version__), style="bold green")
+    sys.exit(0)
 
 
 @app.command()
 def sort(
-        path: Annotated[
-            Optional[str],
-            typer.Argument(
-                help="Path to a directory to be recursively scanned. "
-                     "If empty, only path(s) from loaded configuration file shall be used."
-            )
-        ] = None,
-        dst_path_tv: Annotated[
-            Optional[str],
-            typer.Argument(
-                help="Destination path for sorted media files "
-                     "(tv shows only if movies destination specified)"
-            )
-        ] = None,
-        dst_path_mov: Annotated[
-            Optional[str],
-            typer.Argument(
-                help="Destination path for sorted movie media files"
-            )
-        ] = None,
-        mediatype: Annotated[
-            Optional[str],
-            typer.Option(
-                "--mediatype", "-m",
-                help="Constraint to a media type (tv, movie, auto)"
-            )
-        ] = "auto",
-        action: Annotated[
-            Optional[str],
-            typer.Option(
-                "--action", "-a",
-                help="Constraint to a media type (move, copy, softlink, hardlink)"
-            )
-        ] = "copy",
-        configuration: Annotated[
-            Optional[str],
-            typer.Option(
-                "--configuration", "-c",
-                help="Use a non-default configuration file."
-            )
-        ] = None,
-        quiet: Annotated[
-            bool,
-            typer.Option(
-                "--quiet", "-q",
-                help="No console output. (!) Performs sorting operations without asking."
-            )
-        ] = False,
-        verbose: Annotated[
-            bool,
-            typer.Option("--verbose", "-v", help="Show log messages.")
-        ] = False,
+    path: Annotated[
+        str | None,
+        typer.Argument(
+            help="Path to a directory to be recursively scanned. "
+            "If empty, only path(s) from loaded configuration file shall be used."
+        ),
+    ] = None,
+    dst_path_tv: Annotated[
+        str | None,
+        typer.Argument(
+            help="Destination path for sorted media files "
+            "(tv shows only if movies destination specified)"
+        ),
+    ] = None,
+    dst_path_mov: Annotated[
+        str | None,
+        typer.Argument(help="Destination path for sorted movie media files"),
+    ] = None,
+    mediatype: Annotated[
+        MediaType | None,
+        typer.Option(
+            "--mediatype", "-m", help="Constraint to a media type (tv, movie, auto)"
+        ),
+    ] = "auto",
+    action: Annotated[
+        str | None,
+        typer.Option(
+            "--action",
+            "-a",
+            help="Constraint to a media type (move, copy, softlink, hardlink)",
+        ),
+    ] = "copy",
+    configuration: Annotated[
+        str | None,
+        typer.Option(
+            "--configuration", "-c", help="Use a non-default configuration file."
+        ),
+    ] = None,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="No console output. (!) Performs sorting operations without asking.",
+        ),
+    ] = False,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Show log messages.")
+    ] = False,
 ):
     """Perform the media files sorting."""
     if not verbose:
@@ -205,24 +211,30 @@ def sort(
 
     scans = None
     if path and dst_path_tv:
-        scans = [ScanConfig(
-            src_path=os.path.abspath(os.path.expanduser(path)),
-            media_type=mediatype,
-            action=action,
-            tv_shows_output=os.path.abspath(os.path.expanduser(dst_path_tv)),
-            movies_output=os.path.abspath(os.path.expanduser(dst_path_tv)),
-        )]
+        scans = [
+            ScanConfig(
+                src_path=os.path.abspath(os.path.expanduser(path)),
+                media_type=mediatype,
+                action=action,
+                tv_shows_output=os.path.abspath(os.path.expanduser(dst_path_tv)),
+                movies_output=os.path.abspath(os.path.expanduser(dst_path_tv)),
+            )
+        ]
 
     elif path and dst_path_tv and dst_path_mov:
-        scans = [ScanConfig(
-            src_path=os.path.abspath(os.path.expanduser(path)),
-            media_type=MediaType(mediatype),
-            action=action,
-            tv_shows_output=os.path.abspath(os.path.expanduser(dst_path_tv)),
-            movies_output=os.path.abspath(os.path.expanduser(dst_path_mov)),
-        )]
+        scans = [
+            ScanConfig(
+                src_path=os.path.abspath(os.path.expanduser(path)),
+                media_type=MediaType(mediatype),
+                action=action,
+                tv_shows_output=os.path.abspath(os.path.expanduser(dst_path_tv)),
+                movies_output=os.path.abspath(os.path.expanduser(dst_path_mov)),
+            )
+        ]
     elif path:
-        console.print(Text("Destination path(s) argument(s) missing.", style="bold red"))
+        console.print(
+            Text("Destination path(s) argument(s) missing.", style="bold red")
+        )
         raise typer.Abort()
 
     if scans:
@@ -268,7 +280,7 @@ def sort(
             console.print(Text("Nothing to sort!", style="bold red"))
             typer.Exit(1)
         else:
-            logger.info(f"Nothing to sort.")
+            logger.info("Nothing to sort.")
             console.print(Text("Nothing to sort.", style="green bold"))
             typer.Exit(0)
 
