@@ -1,8 +1,8 @@
 [project]
 name = "multimediasorter"
-version = "2.0.4"
-description = ""
-authors = []
+version = "2.1.5"
+description = "Automatically sorts media files into clean, human-readable names using TMDb/TVMaze metadata, ready for media servers."
+authors = [{name = "xyzjonas"}]
 requires-python = ">=3.11"
 readme = "README.md"
 license = "MIT"
@@ -16,16 +16,20 @@ classifiers = [
 ]
 dependencies = [
     "PyYAML>=6.0,<7",
-    "pydantic>=1.10.4,<3",
+    "pydantic>2,<3",
     "aiohttp>=3.8.3,<4",
     "rich>=13.1.0,<16",
     "async-cache>=1.1.1,<3",
-    "typer>=0.12.3,<0.28",
+    "typer>0.2,<0.28",
     "loguru>=0.7.2,<0.8",
 ]
 
 [project.scripts]
 mediasorter = "mediasorter.cli:main"
+multimediasorter = "mediasorter.cli:main"
+
+[project.urls]
+Repository = "https://github.com/xyzjonas/mediasorter"
 
 [dependency-groups]
 dev = [

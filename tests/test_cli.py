@@ -1,13 +1,19 @@
+import tomllib
+from pathlib import Path
+
+
 def test_help(cli):
     assert "Usage:" in cli(["--help"]).output
     assert cli(["--help"]).exit_code == 0
 
 
 def test_version(cli):
-    from mediasorter import __version__
+    pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+    pyproject = tomllib.loads(pyproject_path.read_text("utf-8"))
+    version = pyproject["project"]["version"]
 
     result = cli(["version"])
-    assert __version__ in result.output
+    assert f"{version}\n" == result.output
     assert result.exit_code == 0
 
 

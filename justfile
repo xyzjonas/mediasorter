@@ -13,5 +13,11 @@ format:
 lint:
   uv run ruff check
 
+publish:
+  @rm -rf ./dist
+  uv version --bump patch
+  uv build
+  uv publish
+
 [parallel]
 ci: lint test format

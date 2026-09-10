@@ -13,7 +13,7 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Column
 from rich.text import Text
 
-from mediasorter import __version__
+from mediasorter.__version__ import __version__
 from mediasorter.lib.config import (
     CONFIG_PATH,
     ConfigurationError,

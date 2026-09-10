@@ -1,15 +1,13 @@
 # (Multi)mediasorter
 
-> Inspired by https://github.com/joshuaboniface/mediasorter, rewritten from scratch with asyncio, enhanced pattern matching and packaged for easier installation/usage.
+Inspired by https://github.com/joshuaboniface/mediasorter, rewritten from scratch with asyncio, enhanced pattern matching and packaged for easier installation/usage.
 
-_"mediasorter is a tool to automatically "sort" media files from a source naming format
+> "mediasorter is a tool to automatically "sort" media files from a source naming format
 into something nicer for humans to read/organize, and for tools like Jellyfin to parse
 and collect metadata for. It uses The Movie DB for movie metadata and TVMaze for
 TV metadata to obtain additional information, then performs the "sort" via
 a user-selectable mechanism. In this aspect it seeks to be a replacement for
 FileBot and other similar tools."_
-
-> See the [mediasorter-server](https://github.com/xyzjonas/mediasorter-server) project for a simple (yet useful) web app frontend.
 
 ## Installation
 
