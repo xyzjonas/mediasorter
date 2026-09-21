@@ -6,29 +6,15 @@ import re
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
-from unittest.mock import patch
 
 import aiohttp
 import pytest
-import yaml
 from typer.testing import CliRunner, Result
 
 from mediasorter.cli import app
 from mediasorter.lib.config import MediaSorterConfig, read_config
-from mediasorter.lib.overrides import SearchOverrides
 
 logger = logging.getLogger()
-
-
-@pytest.fixture(scope="session", autouse=True)
-def mock_overrides():
-    with patch(
-        "mediasorter.lib.overrides.read_search_overrides"
-    ) as read_search_overrides:
-        path = Path(__file__).parent / ".." / "mediasorter.search.overrides.yml"
-        with open(path, "r") as local_copy:
-            data = yaml.load(local_copy.read(), yaml.SafeLoader)
-            read_search_overrides.return_value = SearchOverrides(**data)
 
 
 @pytest.fixture(scope="session")
@@ -78,6 +64,7 @@ def real_config(metainfo_map) -> MediaSorterConfig:
     try:
         cfg = read_config()
         cfg.cache_path = None  # turn cache off
+        cfg.cache_enabled = False
         cfg.metainfo_map = metainfo_map  # override metainfo map
         return cfg
     except RuntimeError as e:

@@ -5,6 +5,8 @@ import yaml
 from loguru import logger
 from pydantic import BaseModel, Field, PositiveInt, ValidationError
 
+from mediasorter.lib.overrides import get_search_overrides
+
 CONFIG_PATH = os.environ.get(
     "MEDIASORTER_CONFIG",
     os.path.expanduser(os.path.join("~", ".config", "mediasorter.yml")),
@@ -102,6 +104,8 @@ class MediaSorterConfig(BaseModel):
 
     cache_path: str | None = "/tmp/mediasorter.cache"
 
+    cache_enabled: bool = True
+
 
 class ConfigurationError(Exception):
     pass
@@ -114,7 +118,12 @@ def read_config(config_file: str | None = None) -> MediaSorterConfig:
         with open(config_file, "r") as cfgfile:
             o_config = yaml.load(cfgfile, Loader=yaml.SafeLoader)
 
-        return MediaSorterConfig(**o_config["mediasorter"])
+        # merge user-configured and well-known overrides for simplicity
+        config = MediaSorterConfig(**o_config["mediasorter"])
+        config.search_overrides = (
+            config.search_overrides | get_search_overrides().flat_overrides
+        )
+        return config
     except FileNotFoundError:
         raise ConfigurationError(
             f"Can't load configuration '{config_file}', file not found"

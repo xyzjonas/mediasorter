@@ -2,7 +2,7 @@ mediasorter *ARGS:
   uv run mediasorter {{ARGS}}
 
 test:
-  uv run pytest
+  uv run pytest -n 4
 
 tox:
   uv run tox -p all
@@ -10,8 +10,8 @@ tox:
 format:
   uv run ruff format .
 
-lint:
-  uv run ruff check
+lint *ARGS:
+  uv run ruff check {{ARGS}}
 
 publish:
   @rm -rf ./dist

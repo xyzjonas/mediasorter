@@ -1,5 +1,14 @@
 import tomllib
 from pathlib import Path
+from unittest import mock
+
+import pytest
+
+
+@pytest.fixture
+def with_real_mediasorter(real_config):
+    with mock.patch("mediasorter.cli._get_config", return_value=real_config):
+        yield
 
 
 def test_help(cli):
@@ -17,7 +26,7 @@ def test_version(cli):
     assert result.exit_code == 0
 
 
-def test_sort_happy_path(cli, test_folder, tmp_path):
+def test_sort_happy_path(cli, test_folder, tmp_path, with_real_mediasorter):
     source_dir = test_folder / "one_movie_e2e"
 
     result = cli(["sort", str(source_dir), str(tmp_path), str(tmp_path)], input="y")

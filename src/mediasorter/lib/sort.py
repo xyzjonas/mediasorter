@@ -203,6 +203,7 @@ class MediaSorter:
     def __init__(self, config: MediaSorterConfig):
         self.config = config
         self.cache = Cache(config.cache_path)
+        self.cache_enabled = config.cache_enabled
 
     @classmethod
     def from_config(cls, config_path: str):
@@ -268,8 +269,8 @@ class MediaSorter:
 
     async def find_tvshow(self, *args) -> TvShowMetadata:
         """Make an external query to find a TV-show/movie metadata."""
-        if hit := self.cache.get(*args):
-            return hit
+        if self.cache_enabled and self.cache.get(*args):
+            return self.cache.get(*args)
 
         exceptions = []
         for api in self.config.api:
@@ -278,7 +279,8 @@ class MediaSorter:
                 if provider_cls:
                     provider = provider_cls(api, self.config.search_overrides)
                     result = await provider.query(*args)
-                    self.cache.insert(*args, result=result)
+                    if self.cache_enabled:
+                        self.cache.insert(*args, result=result)
                     return result
             except MetadataQueryError as e:
                 logger.error(f"{api.name} query failed.")
@@ -291,8 +293,8 @@ class MediaSorter:
 
     async def find_movie(self, *args) -> MovieMetadata:
         """Make an external query to find a TV-show/movie metadata."""
-        if hit := self.cache.get(*args):
-            return hit
+        if self.cache_enabled and self.cache.get(*args):
+            return self.cache.get(*args)
 
         exceptions = []
         for api in self.config.api:
@@ -302,7 +304,8 @@ class MediaSorter:
                 if provider_cls:
                     provider = provider_cls(api, self.config.search_overrides)
                     result = await provider.query(*args)
-                    self.cache.insert(*args, result=result)
+                    if self.cache_enabled:
+                        self.cache.insert(*args, result=result)
                     return result
             except MetadataQueryError as e:
                 logger.error(f"{api.name} query failed.")

@@ -1,5 +1,6 @@
 import os
 import re
+from collections.abc import Iterable
 from copy import copy
 
 from loguru import logger
@@ -8,6 +9,8 @@ from loguru import logger
 class ParsingError(Exception):
     pass
 
+
+DEFAULT_SPLIT_CHARACTERS = (" ", ".", " ")
 
 # Try all of these to look for a release year in the media name.
 # Year is 4 numbers after all, so this can get pretty vague,
@@ -51,7 +54,7 @@ CLEAN_PATTERNS = (re.compile(r"\[[^ ]*]"), *YEAR_PATTERNS)
 
 def split_basename(
     src_path: str,
-    split_characters: list[str] = (".", " "),
+    split_characters: Iterable[str] = (".", " "),
     min_split_length: int = 3,
     invalid_single_characters: list[str] = ("-",),
 ) -> list[list[str]]:
@@ -120,7 +123,7 @@ def _find_sxx_eyy_in_dis_structure(src_path):
 
 def _find_sxx_eyy(
     src_path: str,
-    split_characters: list[str],
+    split_characters: Iterable[str],
     min_split_length: int,
     force: bool = False,
 ) -> tuple[list[str], int, int]:
@@ -163,7 +166,7 @@ def _find_sxx_eyy(
 
 def _find_title_and_year(
     src_path: str,
-    split_characters: list[str],
+    split_characters: Iterable[str],
     min_split_length: int,
     metadata_mapping: dict[str, str] | None = None,
 ) -> tuple[list[str], int | None, list[str]]:
@@ -231,8 +234,8 @@ def _find_title_and_year(
 
 def parse_season_and_episode(
     src_path: str,
-    split_characters: list[str],
-    min_split_length: int,
+    split_characters: Iterable[str] | None = None,
+    min_split_length: int | None = 3,
     force: bool = False,
 ) -> tuple[str, int, int] | None:
     """
@@ -246,10 +249,9 @@ def parse_season_and_episode(
     :param split_characters:List[str]: Specify a list of characters that should be used to split the filename into parts
     :param min_split_length:int: Specify the minimum length of a split word to be considered
     :param force:bool=False: Force the function to search for sxxexx even if it is not found in the filename
-    :return: A tuple of three values:
-    :doc-author: Trelent
+    :return: A tuple of three values: title, season number, episode number
     """
-    """Try to search for and parse series and episode identifiers (SxxEyy)."""
+    split_characters = split_characters or DEFAULT_SPLIT_CHARACTERS
     if not force:
         src_path = os.path.basename(src_path)
 
@@ -278,13 +280,12 @@ def parse_season_and_episode(
 
 def parse_movie_name(
     src_path: str,
-    split_characters: list[str],
-    min_split_length: int,
+    split_characters: Iterable[str] | None = None,
+    min_split_length: int | None = 1,
     metadata_mapping: dict[str, str] | None = None,
 ) -> tuple[str, int | None, list[str]]:
     """Try to search for and parse movie title and release year."""
-    # Pick the longest (= best chance of the right one in case of a mixed name).
-    # filename_parts = split_basename(src_path, split_characters, min_split_length)[0]
+    split_characters = split_characters or DEFAULT_SPLIT_CHARACTERS
 
     filename_parts, movie_year, metainfo_map = _find_title_and_year(
         src_path,

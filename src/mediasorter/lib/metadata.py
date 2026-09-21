@@ -4,7 +4,7 @@ import random
 import re
 from collections.abc import Callable
 from enum import Enum
-from typing import Any, ClassVar
+from typing import Any, Generic, TypeVar
 from urllib.parse import quote
 
 import aiohttp
@@ -14,14 +14,16 @@ from loguru import logger
 
 from mediasorter.lib.config import MetadataProviderApi
 from mediasorter.lib.models import MovieMetadata, TvShowMetadata
-from mediasorter.lib.overrides import read_search_overrides
 from mediasorter.lib.utils import split_and_lower
 
 max_concurrent_requests = os.environ.get("MEDIASORTER_MAX_CONCURRENT_REQUESTS") or 10
 
 
-class Registry:
-    mapping: dict[str, type["MetadataApi"]]
+MetaType = TypeVar("MetaType")
+
+
+class Registry(Generic[MetaType]):
+    mapping: dict[str, type[MetaType]]
 
     def __init__(self):
         self.mapping = {}
@@ -50,18 +52,22 @@ class Registry:
         self.mapping[cls.__name__.lower()] = cls
 
 
-class TvMetadataProviders(Registry):
+class TvMetadataProviders(Registry["TvShowMetadataApi"]):
     pass
 
 
 tv_metadata_providers = TvMetadataProviders()
 
 
-class MovieMetadataProviders(Registry):
+class MovieMetadataProviders(Registry["MovieMetadataApi"]):
     pass
 
 
 movie_metadata_providers = MovieMetadataProviders()
+
+
+class MetadataProviderConfigError(Exception):
+    pass
 
 
 class MetadataQueryError(Exception):
@@ -83,7 +89,6 @@ class MetadataApi:
     key: str | None = None
     url: str | None = None
     path: str | None = None
-    search_overrides: ClassVar[dict[str, str]] = {}
 
     semaphore: asyncio.Semaphore
 
@@ -97,8 +102,10 @@ class MetadataApi:
         self.path = config.path
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
-        if search_overrides:
-            self.search_overrides = search_overrides
+        self.search_overrides = search_overrides or {}
+
+    def search_override(self, search_term: str) -> str:
+        return self.search_overrides.get(search_term.casefold(), search_term)
 
     async def _query(self, *args, **kwargs) -> TvShowMetadata | MovieMetadata:
         """
@@ -332,11 +339,7 @@ class TvMaze(TvShowMetadataApi):
     async def query(
         self, title: str, season_id: int, episode_id: int
     ) -> TvShowMetadata:
-        if (override_title := self.search_overrides.get(title.lower())) or (
-            override_title := (await read_search_overrides()).shows.get(title.lower())
-        ):
-            title = override_title
-
+        title = self.search_override(title)
         series_data, episode = await self.try_harder(
             search_term=title,
             validation_func=self._match_tv_show,
@@ -351,6 +354,7 @@ class TvMaze(TvShowMetadataApi):
             season_id=season_id,
             episode_title=episode_title,
             episode_id=episode_id,
+            episode_summary=episode.get("summary"),
         )
 
 
@@ -366,6 +370,14 @@ class TMDB(MovieMetadataApi):
 
     # Don't load more than this amount of pages - could get pretty crazy.
     max_pages = 5
+
+    def __init__(
+        self,
+        config: MetadataProviderApi | None = None,
+        search_overrides: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(config, search_overrides)
+        self.path = self.path.format(key=self.key, title="{title}")
 
     async def async_fetch_json(self, url, retry=0, max_retries=4):
         """
@@ -386,14 +398,6 @@ class TMDB(MovieMetadataApi):
                 result.get("results").extend(next_results)
 
         return result
-
-    def __init__(
-        self,
-        provider_config: MetadataProviderApi | None = None,
-        search_overrides: dict[str, str] | None = None,
-    ) -> None:
-        super().__init__(provider_config, search_overrides)
-        self.path = self.path.format(key=self.key, title="{title}")
 
     def clean_search_term(self, string, overrides: dict[str, str] | None = None):
         # "Sanitize" input name...
@@ -421,7 +425,7 @@ class TMDB(MovieMetadataApi):
     @validation
     async def _match_movie(
         self, movie_data: dict, search_term, search_year: int | None = None
-    ):
+    ) -> tuple[str, int, str]:
         # List all movies and find the one with matching release year (+- 1 year)
         result_list = movie_data.get("results")
 
@@ -468,25 +472,23 @@ class TMDB(MovieMetadataApi):
                 f"'{search_term}': result '{result_movie_title}' probably a nonsense."
             )
 
-        return result_movie_title, result_movie_year
+        return result_movie_title, result_movie_year, probable_result["overview"]
 
     async def query(
         self, title: str, search_year: int | None = None
     ) -> MovieMetadata | None:
-        if (override_title := self.search_overrides.get(title.lower())) or (
-            override_title := (await read_search_overrides()).movies.get(title.lower())
-        ):
-            title = override_title
-
+        title = self.search_override(title)
         if not self.key:
             raise MetadataQueryError(f"{self.__class__.__name__}: key required.")
 
-        result_movie_title, result_movie_year = await self.try_harder(
+        result_movie_title, result_movie_year, summary = await self.try_harder(
             search_term=title,
             validation_func=self._match_movie,
             validation_callback_args=(search_year,),
         )
-        return MovieMetadata(title=result_movie_title, year=result_movie_year)
+        return MovieMetadata(
+            title=result_movie_title, year=result_movie_year, summary=summary
+        )
 
 
 class MetadataProvider(Enum):
