@@ -18,7 +18,7 @@ FileBot and other similar tools."_
     ```
 2. Bootstrap a default configuration file, you will be prompted for your TMDB api key.
     ``` bash
-    mediasorter --setup
+    mediasorter setup
     ```
 3. Edit the configuration file with your TMDB API key (otherwise only TV shows searches will work).
 4. See `--help` for more details.
@@ -54,11 +54,13 @@ scan_sources:
     media_type: auto  # force only a specific media type tv/movie/auto
     tv_shows_output: ~/Media/TV  # where to put recognized TV shows
     movies_output: ~/Media/Movies
+    action: copy
 
   - src_path: ~/Downloads-02
     media_type: auto
     tv_shows_output: ~/Media/TV
     movies_output: ~/Media/Movies
+    action: move
 ```
 
 ### Search Overrides

@@ -1,6 +1,6 @@
 [project]
 name = "multimediasorter"
-version = "2.1.5"
+version = "2.1.6"
 description = "Automatically sorts media files into clean, human-readable names using TMDb/TVMaze metadata, ready for media servers."
 authors = [{name = "xyzjonas"}]
 requires-python = ">=3.11"
