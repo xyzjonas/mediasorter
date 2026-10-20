@@ -111,6 +111,33 @@ class ConfigurationError(Exception):
     pass
 
 
+ENV_APIS = "MEDIASORTER_CFG__APIS"
+
+
+def apply_env_overrides(config: MediaSorterConfig) -> MediaSorterConfig:
+    """
+    Apply environment variable overrides on top of the given config.
+
+    MEDIASORTER_CFG__APIS: comma separated "name:key" tuples, sets the key
+    of the already configured API with that name, e.g. "tmdb:foobarbaz".
+    """
+    config = config.model_copy(deep=True)
+    apis = {api.name: api for api in config.api}
+    for entry in filter(None, os.environ.get(ENV_APIS, "").split(",")):
+        name, sep, key = (part.strip() for part in entry.partition(":"))
+        if not (name and sep):
+            raise ConfigurationError(
+                f"Invalid {ENV_APIS} entry '{entry}', expected 'name:key'"
+            )
+        if name not in apis:
+            raise ConfigurationError(
+                f"Invalid {ENV_APIS} entry, unknown API '{name}', "
+                f"available: {sorted(apis)}"
+            )
+        apis[name].key = key
+    return config
+
+
 def read_config(config_file: str | None = None) -> MediaSorterConfig:
     config_file = config_file if config_file else CONFIG_PATH
     try:
@@ -123,7 +150,9 @@ def read_config(config_file: str | None = None) -> MediaSorterConfig:
         config.search_overrides = (
             config.search_overrides | get_search_overrides().flat_overrides
         )
-        return config
+        return apply_env_overrides(config)
+    except ConfigurationError:
+        raise
     except FileNotFoundError:
         raise ConfigurationError(
             f"Can't load configuration '{config_file}', file not found"

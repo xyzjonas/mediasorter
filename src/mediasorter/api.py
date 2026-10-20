@@ -1,3 +1,4 @@
+from mediasorter import MediaSorterConfig
 from mediasorter.lib.config import MetadataProviderApi, read_config
 from mediasorter.lib.metadata import (
     MetadataProviderConfigError,
@@ -15,7 +16,7 @@ from mediasorter.lib.parse import (
 
 async def whats_this(
     filename_or_path: str,
-    metadata_providers_map: dict[str, MetadataProviderApi] | None = None,
+    config: MediaSorterConfig | None = None,
 ) -> MovieMetadata | TvShowMetadata:
     """
     What's this? Parse, recognize and fetch metadata based on a string input (e.g. filename)
@@ -24,11 +25,11 @@ async def whats_this(
     :param metadata_providers_map: override metadata providers (clients) configuration, if None default config will be used.
     :return: Metadata object
     """
-    global_config = read_config()
-    if not metadata_providers_map:
-        metadata_providers_map = {
-            provider.name: provider for provider in global_config.api
-        }
+    config = config or read_config()
+    metadata_providers_map= {}
+    for api in config.api:
+        metadata_providers_map[api.name] = api
+
     try:
         title, season, episode = parse_season_and_episode(filename_or_path)
         for key, provider in tv_metadata_providers.mapping.items():

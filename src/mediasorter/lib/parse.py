@@ -10,7 +10,7 @@ class ParsingError(Exception):
     pass
 
 
-DEFAULT_SPLIT_CHARACTERS = (" ", ".", " ")
+DEFAULT_SPLIT_CHARACTERS = (" ", ".", "_", "-")
 
 # Try all of these to look for a release year in the media name.
 # Year is 4 numbers after all, so this can get pretty vague,
